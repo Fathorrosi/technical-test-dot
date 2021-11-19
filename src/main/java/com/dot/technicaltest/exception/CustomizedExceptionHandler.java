@@ -9,7 +9,12 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 @ControllerAdvice
 public class CustomizedExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(DataNotFoundException.class)
-    public ResponseEntity<GlobalResponseEntity> handleNotFoundException(DataNotFoundException ex) {
-        return GlobalResponseEntity.error("404", "Data not found", "", HttpStatus.NOT_FOUND);
+    public ResponseEntity<GlobalResponseEntity> handleNotFoundException() {
+        return GlobalResponseEntity.error("404", "Data not Found", "", HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<GlobalResponseEntity> handleBadRequestException(BadRequestException ex) {
+        return GlobalResponseEntity.error("400", ex.getMessage(), "", HttpStatus.NOT_FOUND);
     }
 }

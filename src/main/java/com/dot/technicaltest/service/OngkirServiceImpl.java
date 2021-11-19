@@ -1,17 +1,20 @@
 package com.dot.technicaltest.service;
 
 import com.dot.technicaltest.dto.OngkirRequestDto;
+import com.dot.technicaltest.exception.BadRequestException;
 import com.dot.technicaltest.exception.DataNotFoundException;
 import com.dot.technicaltest.repository.CityRepository;
+import com.dot.technicaltest.utility.JsonUtility;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
@@ -36,6 +39,7 @@ public class OngkirServiceImpl implements OngkirService {
         return headers;
     }
 
+    @SneakyThrows
     @Override
     @Cacheable(cacheNames = "cekOngkir", key = "T(java.util.Objects).hash(#request.getWeight(),#request.getCourier()" +
             ",#request.getOrigin(),#request.getDestination())")
@@ -48,16 +52,24 @@ public class OngkirServiceImpl implements OngkirService {
 
         var body = "origin=" + origin.get().getCityId() + "&destination=" + dest.get().getCityId() + "&weight=" +
                 request.getWeight() + "&courier=" + request.getCourier();
+
         var entity = new HttpEntity(body, getHeaders());
-        ResponseEntity<String> resp = restTemplate.postForEntity(url, entity, String.class);
-        ObjectMapper mapper = new ObjectMapper();
-        Map<String, Object> result = null;
         try {
-            result = mapper.readValue(resp.getBody(), HashMap.class);
-        } catch (JsonProcessingException e) {
-            log.error("failed to parse data list product", e.getMessage());
+            var resp = restTemplate.postForEntity(url, entity, String.class);
+            ObjectMapper mapper = new ObjectMapper();
+            Map<String, Object> result = null;
+            try {
+                result = mapper.readValue(resp.getBody(), HashMap.class);
+            } catch (JsonProcessingException e) {
+                log.error("failed to parse data", e.getMessage());
+            }
+
+            return result;
+        } catch (HttpClientErrorException e) {
+            log.error(e.getResponseBodyAsString());
+            String message = JsonUtility.parseOngkirResponse(e.getResponseBodyAsString());
+            throw new BadRequestException(message);
         }
 
-        return result;
     }
 }
